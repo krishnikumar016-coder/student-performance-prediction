@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Performance Analytics Dashboard</title>
+    <meta name="description" content="Upload any student CSV dataset for ML-powered performance analytics, visualizations, and predictions.">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="libs/chart.min.js"></script>
+    <script src="libs/papaparse.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Inter',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;}
+        .navbar{background:rgba(15,23,42,0.97);backdrop-filter:blur(12px);padding:1rem 2.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(59,130,246,0.2);position:sticky;top:0;z-index:100;}
+        .navbar-brand{color:white;font-weight:800;font-size:1.3rem;display:flex;align-items:center;gap:10px;}
+        .icon-wrap{background:linear-gradient(135deg,#3b82f6,#8b5cf6);width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;}
+        .icon-wrap i{color:white;font-size:1.1rem;}
+        .nav-badge{background:linear-gradient(135deg,#10b981,#059669);color:white;font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:20px;}
+        .hero-section{position:relative;height:500px;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+        .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;}
+        .hero-overlay{position:absolute;inset:0;background:linear-gradient(135deg,rgba(15,23,42,0.82) 0%,rgba(30,41,59,0.65) 50%,rgba(15,23,42,0.88) 100%);}
+        .hero-content{position:relative;z-index:2;text-align:center;padding:2rem;}
+        .hero-badge{display:inline-block;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.4);color:#93c5fd;font-size:0.8rem;font-weight:600;padding:6px 16px;border-radius:20px;margin-bottom:1.5rem;text-transform:uppercase;letter-spacing:1px;}
+        .hero-title{font-size:3rem;font-weight:800;color:white;line-height:1.15;margin-bottom:1rem;text-shadow:0 2px 20px rgba(0,0,0,0.5);}
+        .hero-title span{background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+        .hero-subtitle{font-size:1.1rem;color:#cbd5e1;margin-bottom:2rem;max-width:580px;margin-left:auto;margin-right:auto;}
+        .hero-features{display:flex;gap:1.5rem;justify-content:center;flex-wrap:wrap;}
+        .hero-feat{display:flex;align-items:center;gap:8px;color:#94a3b8;font-size:0.9rem;}
+        .hero-feat i{color:#3b82f6;}
+        .main-container{max-width:1400px;margin:0 auto;padding:2rem 1.5rem;}
+        .upload-card{background:linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.95));border:2px dashed rgba(59,130,246,0.4);border-radius:24px;padding:3.5rem 2rem;text-align:center;cursor:pointer;transition:all 0.3s;margin-bottom:2rem;}
+        .upload-card:hover{border-color:#3b82f6;transform:translateY(-2px);box-shadow:0 20px 40px rgba(59,130,246,0.15);}
+        .upload-icon{width:80px;height:80px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;box-shadow:0 8px 25px rgba(59,130,246,0.4);}
+        .upload-icon i{font-size:2rem;color:white;}
+        .upload-card h3{font-size:1.5rem;font-weight:700;color:white;margin-bottom:0.5rem;}
+        .upload-card p{color:#94a3b8;font-size:0.95rem;}
+        .upload-hint{display:inline-block;margin-top:1rem;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#93c5fd;font-size:0.8rem;padding:6px 14px;border-radius:20px;}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.2rem;margin-bottom:2rem;}
+        .stat-card{background:linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.8));border:1px solid rgba(100,116,139,0.2);border-radius:16px;padding:1.5rem;display:flex;align-items:center;gap:1rem;transition:all 0.3s;}
+        .stat-card:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,0.3);}
+        .stat-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .stat-icon i{font-size:1.4rem;color:white;}
+        .si-blue{background:linear-gradient(135deg,#3b82f6,#1d4ed8);}
+        .si-green{background:linear-gradient(135deg,#10b981,#059669);}
+        .si-purple{background:linear-gradient(135deg,#8b5cf6,#7c3aed);}
+        .si-red{background:linear-gradient(135deg,#ef4444,#dc2626);}
+        .si-amber{background:linear-gradient(135deg,#f59e0b,#d97706);}
+        .stat-label{font-size:0.8rem;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;}
+        .stat-value{font-size:1.8rem;font-weight:800;color:white;line-height:1.2;}
+        .tabs-wrapper{margin-bottom:1.5rem;}
+        .tabs-container{background:rgba(30,41,59,0.7);border:1px solid rgba(100,116,139,0.2);border-radius:14px;padding:5px;display:inline-flex;flex-wrap:wrap;gap:4px;}
+        .tab-btn{padding:0.65rem 1.25rem;border:none;background:transparent;border-radius:10px;font-weight:600;font-size:0.88rem;color:#64748b;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:7px;}
+        .tab-btn:hover{color:#94a3b8;background:rgba(100,116,139,0.1);}
+        .tab-btn.active{background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;box-shadow:0 4px 15px rgba(59,130,246,0.3);}
+        .tab-content{display:none;background:rgba(30,41,59,0.6);border:1px solid rgba(100,116,139,0.2);border-radius:20px;padding:2rem;}
+        .tab-content.active{display:block;animation:fadeIn 0.3s ease;}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+        .section-title{font-size:1.1rem;font-weight:700;color:white;margin-bottom:1.5rem;display:flex;align-items:center;gap:10px;}
+        .section-title i{color:#3b82f6;}
+        .table-container{overflow-x:auto;max-height:480px;overflow-y:auto;border-radius:12px;border:1px solid rgba(100,116,139,0.2);}
+        table{width:100%;border-collapse:collapse;font-size:0.85rem;}
+        th{background:rgba(15,23,42,0.8);color:#94a3b8;font-weight:600;padding:0.9rem 1rem;position:sticky;top:0;text-align:left;border-bottom:1px solid rgba(100,116,139,0.2);white-space:nowrap;}
+        td{padding:0.7rem 1rem;border-bottom:1px solid rgba(100,116,139,0.1);color:#cbd5e1;white-space:nowrap;}
+        tr:hover td{background:rgba(59,130,246,0.05);}
+        .badge{padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-block;}
+        .badge-pass{background:rgba(16,185,129,0.2);color:#34d399;border:1px solid rgba(16,185,129,0.3);}
+        .badge-fail{background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.3);}
+        .charts-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;}
+        .chart-card{background:rgba(15,23,42,0.6);border:1px solid rgba(100,116,139,0.2);border-radius:16px;padding:1.5rem;}
+        .chart-title{font-size:0.9rem;font-weight:700;color:#94a3b8;margin-bottom:1rem;text-transform:uppercase;letter-spacing:0.5px;}
+        canvas{max-height:280px;width:100%;}
+        .metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;margin-bottom:2rem;}
+        .metric-card{background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(139,92,246,0.1));border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:1.5rem;text-align:center;transition:all 0.3s;}
+        .metric-card:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(59,130,246,0.2);}
+        .metric-value{font-size:2.2rem;font-weight:800;color:white;margin-bottom:0.25rem;}
+        .metric-label{font-size:0.78rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;}
+        .confusion-matrix{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;max-width:460px;margin:1.5rem auto;}
+        .matrix-cell{border-radius:12px;padding:1.5rem;text-align:center;border:1px solid rgba(100,116,139,0.2);}
+        .matrix-cell .val{font-size:2rem;font-weight:800;color:white;}
+        .matrix-cell .lbl{font-size:0.8rem;color:#94a3b8;margin-top:4px;}
+        .cm-tp{background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.3);}
+        .cm-fp{background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.2);}
+        .cm-fn{background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.2);}
+        .cm-tn{background:rgba(100,116,139,0.15);border-color:rgba(100,116,139,0.2);}
+        .prediction-form{max-width:680px;margin:0 auto;}
+        .form-row{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem;}
+        .form-label{display:block;margin-bottom:0.5rem;font-weight:600;font-size:0.88rem;color:#94a3b8;}
+        .form-control{width:100%;padding:0.75rem 1rem;background:rgba(15,23,42,0.7);border:1.5px solid rgba(100,116,139,0.3);border-radius:10px;font-size:0.95rem;color:white;transition:all 0.2s;font-family:'Inter',sans-serif;}
+        .form-control:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.15);}
+        .form-control option{background:#1e293b;}
+        .predict-btn{background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;border:none;padding:1rem 2rem;border-radius:12px;font-weight:700;font-size:1rem;width:100%;cursor:pointer;transition:all 0.3s;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 8px 25px rgba(59,130,246,0.3);}
+        .predict-btn:hover{transform:translateY(-2px);box-shadow:0 12px 35px rgba(59,130,246,0.4);}
+        .prediction-result{margin-top:2rem;padding:2rem;border-radius:16px;text-align:center;animation:fadeIn 0.4s ease;}
+        .result-pass{background:linear-gradient(135deg,rgba(16,185,129,0.2),rgba(5,150,105,0.15));border:1px solid rgba(16,185,129,0.4);}
+        .result-fail{background:linear-gradient(135deg,rgba(239,68,68,0.2),rgba(220,38,38,0.15));border:1px solid rgba(239,68,68,0.4);}
+        .result-value{font-size:3.5rem;font-weight:800;color:white;}
+        .spinner{border:4px solid rgba(100,116,139,0.2);border-top:4px solid #3b82f6;border-radius:50%;width:50px;height:50px;animation:spin 0.8s linear infinite;margin:2rem auto;}
+        @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+        .hidden{display:none;}
+        .info-box{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);border-radius:12px;padding:1rem 1.2rem;margin-top:1.5rem;font-size:0.88rem;color:#93c5fd;}
+        .info-box ul{margin-top:0.5rem;padding-left:1.2rem;}
+        .info-box li{margin-bottom:4px;color:#7dd3fc;}
+        .col-selector{margin-bottom:1.5rem;padding:1.2rem;background:rgba(15,23,42,0.6);border-radius:12px;border:1px solid rgba(100,116,139,0.2);}
+        .col-selector label{font-size:0.85rem;font-weight:600;color:#94a3b8;margin-bottom:6px;display:block;}
+        .col-selector select{width:100%;padding:0.6rem 0.9rem;background:rgba(15,23,42,0.8);border:1.5px solid rgba(100,116,139,0.3);border-radius:8px;color:white;font-family:'Inter',sans-serif;font-size:0.9rem;}
+        .col-selector select option{background:#1e293b;}
+        @media(max-width:768px){.metrics-grid{grid-template-columns:repeat(2,1fr);}.charts-grid{grid-template-columns:1fr;}.form-row{grid-template-columns:1fr;}.hero-title{font-size:2rem;}}
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="icon-wrap">
+                <!-- SVG Fallback for Graduation Cap -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
+            </div>
+            Student Performance Analytics
+        </div>
+        <span class="nav-badge">&#10022; ML POWERED</span>
+    </nav>
+
+    <section class="hero-section">
+        <img class="hero-img" src="college_hero.png" alt="College Campus">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <div class="hero-badge"><i class="fas fa-university"></i> &nbsp;Academic Intelligence Platform</div>
+            <h1 class="hero-title">Unlock Student <span>Performance</span> Insights</h1>
+            <p class="hero-subtitle">Upload any student dataset CSV and instantly get ML-powered analytics, visualizations, and pass/fail predictions.</p>
+            <div class="hero-features">
+                <div class="hero-feat"><i class="fas fa-chart-bar"></i> Smart Visualizations</div>
+                <div class="hero-feat"><i class="fas fa-brain"></i> ML Predictions</div>
+                <div class="hero-feat"><i class="fas fa-upload"></i> Any CSV Dataset</div>
+                <div class="hero-feat"><i class="fas fa-tachometer-alt"></i> Live Analytics</div>
+            </div>
+        </div>
+    </section>
+
+    <div class="main-container">
+        <div id="uploadSection">
+            <div class="upload-card" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                <h3>Upload Your CSV Dataset</h3>
+                <p>Click to browse or drag &amp; drop any student dataset CSV file</p>
+                <span class="upload-hint"><i class="fas fa-file-csv"></i> &nbsp;Works with any CSV &mdash; auto-detects columns</span>
+                <input type="file" id="fileInput" accept=".csv" style="display:none;">
+            </div>
+        </div>
+
+        <div id="statsSection" class="stats-grid hidden">
+            <div class="stat-card"><div class="stat-icon si-blue"><i class="fas fa-users"></i></div><div><div class="stat-label">Total Records</div><div class="stat-value" id="totalStudents">0</div></div></div>
+            <div class="stat-card"><div class="stat-icon si-green"><i class="fas fa-chart-line"></i></div><div><div class="stat-label">Pass Rate</div><div class="stat-value" id="passRate">--</div></div></div>
+            <div class="stat-card"><div class="stat-icon si-purple"><i class="fas fa-star"></i></div><div><div class="stat-label">High Performers</div><div class="stat-value" id="highPerformers">0</div></div></div>
+            <div class="stat-card"><div class="stat-icon si-red"><i class="fas fa-exclamation-triangle"></i></div><div><div class="stat-label">At Risk</div><div class="stat-value" id="lowPerformers">0</div></div></div>
+            <div class="stat-card"><div class="stat-icon si-amber"><i class="fas fa-database"></i></div><div><div class="stat-label">Total Columns</div><div class="stat-value" id="totalCols">0</div></div></div>
+        </div>
+
+        <div id="tabsSection" class="hidden">
+            <div class="tabs-wrapper">
+                <div class="tabs-container">
+                    <button class="tab-btn active" onclick="switchTab('overview',this)"><i class="fas fa-table"></i> Data Overview</button>
+                    <button class="tab-btn" onclick="switchTab('visualizations',this)"><i class="fas fa-chart-bar"></i> Visualizations</button>
+                    <button class="tab-btn" onclick="switchTab('model',this)"><i class="fas fa-brain"></i> Model Performance</button>
+                    <button class="tab-btn" onclick="switchTab('predict',this)"><i class="fas fa-magic"></i> Predict</button>
+                </div>
+            </div>
+            <div id="overviewTab" class="tab-content active">
+                <div class="section-title"><i class="fas fa-database"></i> Dataset Overview</div>
+                <div class="col-selector">
+                    <label><i class="fas fa-crosshairs"></i> Target / Score Column (used for Pass/Fail analysis):</label>
+                    <select id="targetColSelect" onchange="onTargetChange()"><option value="">-- Auto Detect --</option></select>
+                </div>
+                <div class="table-container" id="dataTable"></div>
+            </div>
+            <div id="visualizationsTab" class="tab-content">
+                <div class="section-title"><i class="fas fa-chart-pie"></i> Visualizations</div>
+                <div class="charts-grid">
+                    <div class="chart-card"><div class="chart-title">Performance Categories</div><canvas id="performanceChart"></canvas></div>
+                    <div class="chart-card"><div class="chart-title">Score Distribution</div><canvas id="gradesDistributionChart"></canvas></div>
+                    <div class="chart-card"><div class="chart-title">Pass vs Fail Ratio</div><canvas id="passFailChart"></canvas></div>
+                    <div class="chart-card"><div class="chart-title">Feature Correlation with Target</div><canvas id="correlationChart"></canvas></div>
+                </div>
+            </div>
+            <div id="modelTab" class="tab-content">
+                <div class="section-title"><i class="fas fa-chart-line"></i> Model Performance</div>
+                <div class="metrics-grid">
+                    <div class="metric-card"><div class="metric-value" id="accuracy">--</div><div class="metric-label">Accuracy</div></div>
+                    <div class="metric-card"><div class="metric-value" id="precision">--</div><div class="metric-label">Precision</div></div>
+                    <div class="metric-card"><div class="metric-value" id="recall">--</div><div class="metric-label">Recall</div></div>
+                    <div class="metric-card"><div class="metric-value" id="f1Score">--</div><div class="metric-label">F1 Score</div></div>
+                </div>
+                <h5 style="color:#94a3b8;margin-bottom:1rem;">Confusion Matrix</h5>
+                <div class="confusion-matrix" id="confusionMatrix"></div>
+                <h5 style="color:#94a3b8;margin:1.5rem 0 1rem;">Classification Report</h5>
+                <div class="table-container" id="classificationReport"></div>
+                <div class="info-box"><strong>&#127919; How the Model Works</strong><ul><li>Logistic regression via gradient descent on numeric columns</li><li>Auto-detects target column or use manual selection</li><li>80/20 train-test split for live evaluation</li><li>Works on any CSV dataset automatically</li></ul></div>
+            </div>
+            <div id="predictTab" class="tab-content">
+                <div class="section-title"><i class="fas fa-robot"></i> Predict Student Performance</div>
+                <div class="prediction-form">
+                    <div id="predictFormFields"></div>
+                    <button class="predict-btn" onclick="predict()"><i class="fas fa-calculator"></i> Predict Performance</button>
+                    <div id="predictionResult" class="prediction-result hidden"></div>
+                </div>
+            </div>
+        </div>
+        <div id="loadingSpinner" class="spinner hidden"></div>
+    </div>
+
+    <script>
+    let data=null,charts={},model=null,columns=[],numericCols=[],targetCol='';
+    document.getElementById('fileInput').addEventListener('change',function(e){const f=e.target.files[0];if(f)parseCSV(f);});
+    const uc=document.querySelector('.upload-card');
+    uc.addEventListener('dragover',e=>{e.preventDefault();uc.style.borderColor='#3b82f6';});
+    uc.addEventListener('dragleave',()=>{uc.style.borderColor='';});
+    uc.addEventListener('drop',e=>{e.preventDefault();uc.style.borderColor='';const f=e.dataTransfer.files[0];if(f)parseCSV(f);});
+
+    function parseCSV(file){
+        if(typeof Papa === 'undefined'){
+            alert('Libraries are still loading. Please wait a moment and try again.');
+            return;
+        }
+        showLoading();
+        // Small delay to allow spinner to render
+        setTimeout(() => {
+            Papa.parse(file,{
+                header:true,dynamicTyping:true,skipEmptyLines:true,
+                worker: true,
+                complete:function(res){
+                    if(!res.data||res.data.length===0){alert('No data found');hideLoading();return;}
+                    data=res.data;
+                    columns=Object.keys(data[0]);
+                    numericCols=columns.filter(c=>typeof data[0][c]==='number');
+                    populateTargetSelector();
+                    targetCol=detectTargetCol();
+                    document.getElementById('targetColSelect').value=targetCol;
+                    
+                    // Run processing in chunks to avoid hanging the UI
+                    setTimeout(() => {
+                        processData();
+                        hideLoading();
+                        showSections();
+                    }, 50);
+                },
+                error:function(){alert('Error parsing CSV');hideLoading();}
+            });
+        }, 30);
+    }
+
+    function detectTargetCol(){
+        const priority=['g3','grade','finalscore','final_grade','final','marks','score','total','result','g2','g1'];
+        for(const p of priority){const f=columns.find(c=>c.toLowerCase().replace(/[^a-z0-9]/g,'')===p);if(f)return f;}
+        return numericCols.length>0?numericCols[numericCols.length-1]:columns[columns.length-1];
+    }
+
+    function populateTargetSelector(){
+        const sel=document.getElementById('targetColSelect');
+        sel.innerHTML='<option value="">-- Auto Detect --</option>';
+        numericCols.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o);});
+    }
+
+    function onTargetChange(){
+        const v=document.getElementById('targetColSelect').value;
+        targetCol=v||detectTargetCol();
+        if(data){
+            showLoading();
+            setTimeout(() => {
+                processData();
+                hideLoading();
+            }, 30);
+        }
+    }
+
+    function processData(){
+        const scores = data.map(r=>r[targetCol]||0);
+        const maxScore = Math.max(...scores);
+        const passT = maxScore * 0.5;
+        
+        for(let i=0; i<data.length; i++){
+            const row = data[i];
+            const s = row[targetCol]||0;
+            row._score=s;
+            row._result=s>=passT?'Pass':'Fail';
+            row._level=s>=maxScore*0.75?'High':s>=passT?'Medium':'Low';
+        }
+        
+        updateStats();
+        createCharts();
+        displayDataTable();
+        trainModel();
+        buildPredictForm();
+    }
+
+    function updateStats(){
+        let passCount = 0, highCount = 0, lowCount = 0;
+        for(let i=0; i<data.length; i++){
+            if(data[i]._result === 'Pass') passCount++;
+            if(data[i]._level === 'High') highCount++;
+            if(data[i]._level === 'Low') lowCount++;
+        }
+        document.getElementById('totalStudents').textContent=data.length;
+        document.getElementById('passRate').textContent=((passCount/data.length)*100).toFixed(1)+'%';
+        document.getElementById('highPerformers').textContent=highCount;
+        document.getElementById('lowPerformers').textContent=lowCount;
+        document.getElementById('totalCols').textContent=columns.length;
+    }
+
+    function trainModel(){
+        const fc=numericCols.filter(c=>c!==targetCol);
+        if(fc.length===0){setMetrics(0,0,0,0,0,0,0,0);return;}
+        const means={},stds={};
+        const n = data.length;
+        const featureCount = fc.length;
+        
+        fc.forEach(c=>{
+            let sum = 0, sumSq = 0;
+            for(let i=0; i<n; i++) {
+                const v = data[i][c]||0;
+                sum += v;
+                sumSq += v*v;
+            }
+            const m = sum / n;
+            const s = Math.sqrt(Math.max(0, (sumSq / n) - (m * m))) || 1;
+            means[c]=m;stds[c]=s;
+        });
+
+        const feats = new Float32Array(n * featureCount);
+        const labs = new Int8Array(n);
+        for(let i=0; i<n; i++) {
+            labs[i] = data[i]._result==='Pass' ? 1 : 0;
+            for(let j=0; j<featureCount; j++) {
+                const col = fc[j];
+                feats[i * featureCount + j] = ((data[i][col]||0) - means[col]) / stds[col];
+            }
+        }
+
+        const sp=Math.floor(n*0.8);
+        const trLen = sp;
+        const W=new Float32Array(featureCount).fill(0);
+        let b=0;
+        const lr = 0.1;
+        
+        for(let e=0;e<100;e++){
+            let db=0;
+            const dW = new Float32Array(featureCount);
+            for(let i=0; i<trLen; i++){
+                let z = b;
+                const offset = i * featureCount;
+                for(let j=0; j<featureCount; j++) {
+                    z += feats[offset + j] * W[j];
+                }
+                const p = 1 / (1 + Math.exp(-z));
+                const er = p - labs[i];
+                for(let j=0; j<featureCount; j++) {
+                    dW[j] += er * feats[offset + j];
+                }
+                db += er;
+            }
+            for(let j=0; j<featureCount; j++) W[j] -= lr * dW[j] / trLen;
+            b -= lr * db / trLen;
+        }
+
+        let tp=0,tn=0,fp=0,fn=0;
+        for(let i=sp; i<n; i++){
+            let z = b;
+            const offset = i * featureCount;
+            for(let j=0; j<featureCount; j++) z += feats[offset + j] * W[j];
+            const pr = z >= 0 ? 1 : 0, ac = labs[i];
+            if(pr===1&&ac===1)tp++;else if(pr===0&&ac===0)tn++;else if(pr===1&&ac===0)fp++;else fn++;
+        }
+        const t = (n - sp)||1;
+        const acc=(tp+tn)/t*100,prec=tp/(tp+fp||1)*100,rec=tp/(tp+fn||1)*100,f1=2*prec*rec/(prec+rec||1);
+        setMetrics(acc,prec,rec,f1,tp,tn,fp,fn);
+        model={W,b,means,stds,fc,maxScore:Math.max(...data.map(r=>r[targetCol]||0))};
+    }
+
+    function setMetrics(acc,prec,rec,f1,tp,tn,fp,fn){
+        document.getElementById('accuracy').textContent=acc.toFixed(1)+'%';
+        document.getElementById('precision').textContent=prec.toFixed(1)+'%';
+        document.getElementById('recall').textContent=rec.toFixed(1)+'%';
+        document.getElementById('f1Score').textContent=f1.toFixed(1)+'%';
+        document.getElementById('confusionMatrix').innerHTML=`
+            <div class="matrix-cell cm-tp"><div class="val">${tp}</div><div class="lbl">True Positive</div></div>
+            <div class="matrix-cell cm-fp"><div class="val">${fp}</div><div class="lbl">False Positive</div></div>
+            <div class="matrix-cell cm-fn"><div class="val">${fn}</div><div class="lbl">False Negative</div></div>
+            <div class="matrix-cell cm-tn"><div class="val">${tn}</div><div class="lbl">True Negative</div></div>`;
+        document.getElementById('classificationReport').innerHTML=`
+            <table><thead><tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr></thead><tbody>
+            <tr><td>Fail</td><td>${(tn/(tn+fp||1)*100).toFixed(1)}%</td><td>${(tn/(tn+fn||1)*100).toFixed(1)}%</td><td>${(2*(tn/(tn+fp||1))*(tn/(tn+fn||1))/((tn/(tn+fp||1))+(tn/(tn+fn||1))||1)*100).toFixed(1)}%</td><td>${tn+fp}</td></tr>
+            <tr><td>Pass</td><td>${prec.toFixed(1)}%</td><td>${rec.toFixed(1)}%</td><td>${f1.toFixed(1)}%</td><td>${tp+fn}</td></tr>
+            </tbody></table>`;
+    }
+
+    function createCharts(){
+        Chart.defaults.color='#94a3b8';
+        const scores = data.map(r=>r._score);
+        const mx=Math.max(...scores);
+        const hi=data.filter(r=>r._level==='High').length;
+        const me=data.filter(r=>r._level==='Medium').length;
+        const lo=data.filter(r=>r._level==='Low').length;
+        const pc=data.filter(r=>r._result==='Pass').length;
+        const fc=data.filter(r=>r._result==='Fail').length;
+        const ctx1=document.getElementById('performanceChart').getContext('2d');
+        if(charts.perf)charts.perf.destroy();
+        charts.perf=new Chart(ctx1,{type:'bar',data:{labels:['At Risk','Medium','High'],datasets:[{data:[lo,me,hi],backgroundColor:['#ef4444','#f59e0b','#10b981'],borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(100,116,139,0.1)'}},y:{grid:{color:'rgba(100,116,139,0.1)'}}}}});
+        const bins=10,bs=(mx||20)/bins;
+        const bd=new Array(bins).fill(0),bl=[];
+        for(let i=0;i<bins;i++){bl.push(`${(i*bs).toFixed(0)}-${((i+1)*bs).toFixed(0)}`);scores.forEach(s=>{if(s>=i*bs&&s<(i+1)*bs)bd[i]++;});}
+        const ctx2=document.getElementById('gradesDistributionChart').getContext('2d');
+        if(charts.dist)charts.dist.destroy();
+        charts.dist=new Chart(ctx2,{type:'bar',data:{labels:bl,datasets:[{label:'Students',data:bd,backgroundColor:'rgba(59,130,246,0.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(100,116,139,0.1)'}},y:{grid:{color:'rgba(100,116,139,0.1)'}}}}});
+        const ctx3=document.getElementById('passFailChart').getContext('2d');
+        if(charts.pf)charts.pf.destroy();
+        charts.pf=new Chart(ctx3,{type:'doughnut',data:{labels:['Pass','Fail'],datasets:[{data:[pc,fc],backgroundColor:['rgba(16,185,129,0.8)','rgba(239,68,68,0.8)'],borderColor:['#10b981','#ef4444'],borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8'}}},cutout:'65%'}});
+        const cc=numericCols.filter(c=>c!==targetCol).slice(0,6);
+        const cv=cc.map(c=>{
+            const xs=data.map(r=>r[c]||0),ys=data.map(r=>r._score||0);
+            const mx2=xs.reduce((a,b)=>a+b,0)/xs.length,my=ys.reduce((a,b)=>a+b,0)/ys.length;
+            const num=xs.reduce((s,x,i)=>s+(x-mx2)*(ys[i]-my),0);
+            const den=Math.sqrt(xs.reduce((s,x)=>s+(x-mx2)**2,0)*ys.reduce((s,y)=>s+(y-my)**2,0))||1;
+            return parseFloat((num/den).toFixed(3));
+        });
+        const ctx4=document.getElementById('correlationChart').getContext('2d');
+        if(charts.corr)charts.corr.destroy();
+        charts.corr=new Chart(ctx4,{type:'bar',data:{labels:cc,datasets:[{label:'Correlation',data:cv,backgroundColor:cv.map(v=>v>=0?'rgba(59,130,246,0.7)':'rgba(239,68,68,0.7)'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{min:-1,max:1,grid:{color:'rgba(100,116,139,0.1)'}},y:{grid:{color:'rgba(100,116,139,0.1)'}}}}});
+    }
+
+    function displayDataTable(){
+        const sc=columns.slice(0,9);
+        const hdr=sc.map(c=>`<th>${c}</th>`).join('')+'<th>Result</th><th>Level</th>';
+        const rows=data.slice(0,20).map(row=>{
+            const cells=sc.map(c=>`<td>${row[c]!==undefined&&row[c]!==null?row[c]:'-'}</td>`).join('');
+            const badge=row._result==='Pass'?'<span class="badge badge-pass">Pass</span>':'<span class="badge badge-fail">Fail</span>';
+            const color=row._level==='Low'?'#f87171':row._level==='Medium'?'#fbbf24':'#34d399';
+            return `<tr>${cells}<td>${badge}</td><td style="color:${color};font-weight:600;">${row._level}</td></tr>`;
+        }).join('');
+        document.getElementById('dataTable').innerHTML=`<table><thead><tr>${hdr}</tr></thead><tbody>${rows}</tbody></table><p style="text-align:center;margin-top:1rem;color:#64748b;font-size:0.85rem;">Showing 20 of ${data.length} records &nbsp;|&nbsp; Target: <strong style="color:#93c5fd;">${targetCol}</strong></p>`;
+    }
+
+    function buildPredictForm(){
+        if(!model)return;
+        const cols=model.fc.slice(0,8);
+        let html='';
+        for(let i=0;i<cols.length;i+=2){
+            const c1=cols[i],c2=cols[i+1];
+            const v1=(model.means[c1]||0).toFixed(1),v2=c2?(model.means[c2]||0).toFixed(1):'';
+            html+=`<div class="form-row"><div class="form-group"><label class="form-label">${c1}</label><input type="number" class="form-control" id="pf_${c1}" value="${v1}" step="0.1"></div>${c2?`<div class="form-group"><label class="form-label">${c2}</label><input type="number" class="form-control" id="pf_${c2}" value="${v2}" step="0.1"></div>`:'<div></div>'}</div>`;
+        }
+        document.getElementById('predictFormFields').innerHTML=html;
+    }
+
+    function predict(){
+        if(!model){alert('Please upload data first');return;}
+        const x=model.fc.map(c=>{const el=document.getElementById('pf_'+c);const v=el?parseFloat(el.value)||0:model.means[c]||0;return(v-model.means[c])/model.stds[c];});
+        const z=x.reduce((s,v,j)=>s+v*model.W[j],0)+model.b;
+        const prob=1/(1+Math.exp(-z));
+        const prediction=prob>=0.5?'PASS':'FAIL';
+        const confidence=(Math.abs(prob-0.5)*2*100).toFixed(1);
+        const rd=document.getElementById('predictionResult');
+        rd.className=`prediction-result result-${prediction.toLowerCase()}`;
+        rd.innerHTML=`<div class="result-value">${prediction}</div><div style="font-size:1.2rem;margin-top:0.5rem;color:rgba(255,255,255,0.85);">Confidence: ${confidence}%</div><div style="font-size:0.95rem;margin-top:0.5rem;color:rgba(255,255,255,0.6);">Probability: ${(prob*100).toFixed(1)}%</div>`;
+        rd.classList.remove('hidden');
+    }
+
+    function switchTab(name,el){
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        el.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+        document.getElementById(name+'Tab').classList.add('active');
+    }
+    function showLoading(){document.getElementById('loadingSpinner').classList.remove('hidden');}
+    function hideLoading(){document.getElementById('loadingSpinner').classList.add('hidden');}
+    function showSections(){document.getElementById('uploadSection').style.display='none';document.getElementById('statsSection').classList.remove('hidden');document.getElementById('tabsSection').classList.remove('hidden');}
+    </script>
+</body>
+</html>
